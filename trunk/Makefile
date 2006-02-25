@@ -9,4 +9,5 @@ dist: clean
 	ls -l ../sharetunes.zip
 
 publish:
+	#@@ obsolete
 	scp ../sharetunes.zip brendano@elaine.stanford.edu:~/WWW
