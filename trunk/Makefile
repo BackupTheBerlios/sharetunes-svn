@@ -9,3 +9,4 @@ dist: clean
 
 publish:
 	source admin.sh && publish
+	echo "next step is http://developer.berlios.de/project/admin/qrs.php?package_id=&group_id=6194"
