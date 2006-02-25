@@ -1,0 +1,380 @@
+<html>
+<head>
+<title>Music!</title>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/> 
+
+<style>
+body {
+    font-family: arial, sans-serif;
+    font-size: 80%;
+}
+table {
+    font-size: 95%; /*moz: need for body size inheritance*/
+}
+#mainArea {
+    margin-top: 100px;
+}`
+#thetable {
+    margin: 10px;
+    padding: 2px;
+    /* border: solid black 1px; */
+}
+#tablecontainer {
+}
+#iTunesFile_errorMessage {
+    background: #900;
+    color: white;
+    padding: 1px;
+}
+#controlarea {
+    position: fixed;
+    top:5px;
+    background: #fff;
+    padding: 8px;
+    border: 2px solid blue;
+}
+#demoInfo {
+    position: fixed;
+    background: #fff;
+    bottom: 5px;
+    right: 5px;
+    padding: 8px;
+    border: 2px solid #a11;
+    font-size: 80%;
+}
+#yourComputerArea {
+    position: fixed;
+    top:5px;
+    right: 5px;
+    background: #fff;
+    padding: 8px;
+    border: 2px solid green;
+}
+#totalShownArea {
+    background: #efe;
+    padding: 2px;
+}
+.invisible {
+    display:none;
+}
+tr {
+    cursor: pointer;
+}
+tr:hover {
+    background: #eee;
+}
+tr.selectedPlaying {
+    background: #55b;
+    color: #fff;
+}
+tr.selectedPlaying:hover {
+    color: #fff;
+}
+td {
+    text-align: left;
+    border-bottom: 1px solid #ccc;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+.downloadLink {
+    padding-right: 5pt;
+}
+</style>
+
+<!-- <script src="player/playtagger2.js"> </script> -->
+<script src="player/MochiKit.js"> </script>
+<script src="player/JavaScriptFlashGateway.js"> </script>
+<script>
+    function toggleVisible(elem) {
+        toggleElementClass("invisible", elem);
+    }
+
+    function makeVisible(elem) {
+        removeElementClass(elem, "invisible");
+    }
+
+    function makeInvisible(elem) {
+        addElementClass(elem, "invisible");
+    }
+
+    function isVisible(elem) {
+        // you may also want to check for
+        // getElement(elem).style.display == "none"
+        return !hasElementClass(elem, "invisible");
+    };
+</script>
+
+
+<script>
+// flash gateway docs: http://weblogs.macromedia.com/flashjavascript/readme.html
+var uid = new Date().getTime();
+var flashProxy = new FlashProxy(uid, 'player/JavaScriptFlashGateway.swf');
+var flashTag = new FlashTag('player/flashplay/flashplay.swf', 0,0);
+flashTag.setFlashvars('lcId='+uid);
+
+
+selectedRow = null;
+nowPlaying = false;
+totalShown = -1;
+
+function play(tr)
+{
+    if(! tr) return;
+    nowPlaying = true;
+    if(selectedRow)  removeElementClass(selectedRow, 'selectedPlaying');
+    addElementClass(tr, 'selectedPlaying');
+    selectedRow = tr;
+    var url = tr.getAttribute('musicurl');
+        flashProxy.call('play', url);
+    $('stop_btn').setAttribute('value', 'stop');
+
+//        Delicious.Mp3.destroy();
+//        Delicious.Mp3.toggle(document.getElementById('playstop'), url);
+}
+function stop_btn() 
+{
+    if(nowPlaying) {
+        nowPlaying = false;
+        flashProxy.call('stop');
+        $('stop_btn').setAttribute('value', 'play');
+    } else {
+        if(! selectedRow) return;
+        play(selectedRow);
+    }
+}
+function next_btn() {
+    if(!selectedRow) return;
+    nextprev(function(elt){return elt.nextSibling;});
+}
+function prev_btn() {
+    if(!selectedRow) return;
+    nextprev(function(elt){return elt.previousSibling;});
+}
+function nextprev(getter) {
+    var row = selectedRow;
+    while(row = getter(row)) {
+        if(!hasElementClass(row, 'invisible')) 
+            break;
+    }
+    flashProxy.call('stop');
+    play(row);
+}
+function onTrackEnd() { 
+    next_btn();    
+}
+function search() 
+{
+    var query = $('search_field').value;
+    if(query.length == 0) {
+        var tr = $('thetbody').firstChild;
+        while(tr = tr.nextSibling) {
+            removeElementClass(tr, 'invisible');
+        }
+        totalShown = -1;
+        displayTotalShown();
+        return;
+    }
+
+    var tr = $('thetbody').firstChild;
+    //#text node and header tr in the way.  advance to first song
+    while(tr && (!tr.hasAttribute || ! tr.hasAttribute('musicurl'))) {
+        tr = tr.nextSibling;
+    }
+
+    query = query.toLowerCase();
+    totalShown = 0;
+    while(tr) {
+        var tracktext = tr.innerHTML.toLowerCase().replace(/\<td\>/,'');
+        if(tracktext.indexOf(query) == -1 ) {
+            addElementClass(tr, 'invisible');
+        } else {
+            removeElementClass(tr, 'invisible');
+            totalShown++;
+        }
+        tr = tr.nextSibling;
+    }
+    displayTotalShown();
+}
+function displayTotalShown() {
+    if(totalShown == -1) {
+        totalShown = $('thetbody').childNodes.length;
+    }
+    $('totalShownArea').innerHTML = totalShown + ' shown';
+}
+function onPageLoad() {
+    displayTotalShown();
+    var h = window.location.hostname;
+    if(true || h == 'localhost' || h == '127.0.0.1') {
+        removeElementClass($('yourComputerArea'), 'invisible');
+    }
+
+    showInMainArea($('tablecontainer'));
+}
+
+currentMainArea = null;
+function showInMainArea(nodeOrId) {
+    var node = $(nodeOrId);
+    appendChildNodes($('alwaysHidden'), $(currentMainArea));
+    replaceChildNodes($('mainArea'), node);
+    currentMainArea = node.id
+}
+
+// currentMainArea = 'tablecontainer';
+// function showInMainArea(id) {
+//     for(var c=$('mainArea').firstChild; c = c.nextSibling; c) {
+//         if(c.id == id) {
+//             removeElementClass(c, 'invisible');
+//         } else {
+//             alert('noteq');
+//             alert(c);
+//             addElementClass(c, 'invisible');
+//         }
+//     }
+// }
+
+
+function toggleOptions() {
+    if(currentMainArea == 'options') {
+        showInMainArea('tablecontainer');
+        $('toggleOptions').innerHTML = "Show Options";
+    } else {
+        showInMainArea('options');
+        $('toggleOptions').innerHTML = "Show Music";
+//         makeVisible($('optionsLoading'));
+//         makeInvisible($('optionsPane'));
+        var d = loadJSONDoc('/jcall/getConfig');
+        d.addCallback(fillOptionsWithConfig);
+        d.addCallback(function(config) {
+//             makeInvisible($('optionsLoading'));
+            makeVisible($('optionsPane'));
+        });
+    }
+}
+
+function fillOptionsWithConfig(config) {
+    log("Filling with config: "+ serializeJSON(config));
+
+    $('iTunesFile').value = config.iTunesFile;
+    $('allowRemoteHosts').innerHTML = config.allowRemoteHosts ? "Yes" : "No";
+}
+
+function saveOptions() {
+    var newConfig = {
+        'iTunesFile': $('iTunesFile').value,
+        'allowRemoteHosts': true 
+        //$('allowRemoteHosts') == "Yes"?true:fals
+    }
+    var d = loadJSONDoc('/jcall/saveConfig?' + 
+                escape(serializeJSON(newConfig)));
+    d.addCallback(function(ret) { 
+        log(serializeJSON(ret));
+        if(ret.success) {
+            $('optionsStatus').innerHTML="Options saved.";
+            clearOptionsErrorMessages();
+        } else {
+            $('optionsStatus').innerHTML="Error when saving.";
+            clearOptionsErrorMessages();
+            for(var key in ret.messages) {
+                $(key+'_errorMessage').innerHTML = ret.messages[key];
+            }
+        }
+    });
+//     d.addErrback(function(a,b,c) {
+//             $('optionsStatus').innerHTML = "Internal error when saving.";
+//             log("in err back " + a + " | "+b+" | "+c);
+//     });
+}
+function restoreDefaults() {
+    var d = loadJSONDoc('/jcall/restoreDefaults');
+    d.addCallback(fillOptionsWithConfig);
+}
+function clearOptionsErrorMessages() {
+    $('iTunesFile_errorMessage').innerHTML = '';
+}
+
+function processITunes() {
+    makeVisible($('iTunesProcessStatus'));
+    $('iTunesProcessStatus').innerHTML = "Reading iTunes database...";
+    var d = doSimpleXMLHttpRequest('/jcall/processITunes');
+    d.addCallback(function(bla) {
+        var dtt = doSimpleXMLHttpRequest('/player/tracks_table');
+        dtt.addCallback(function(xhr) {
+            $('thetbody').innerHTML = xhr.responseText;
+            displayTotalShown();
+        });
+        $('iTunesProcessStatus').innerHTML = 
+            "Complete reading iTunes database. " +
+            "<a href=\"javascript:toggleOptions()\">See imported music</a>";
+    });
+}
+</script>
+</head>
+
+
+
+<body onload="onPageLoad();">
+<div id="controlarea">
+    <img id="playstop" src="player/white.gif">
+    
+    <script>  flashTag.write(document);  </script>
+
+    <input type=button id=prev_btn value="<<" onclick="prev_btn()">
+    <input type=button id=stop_btn value="play" onclick="stop_btn()">
+    <input type=button id=next_btn value=">>" onclick="next_btn()">
+    &nbsp;
+        <input type=text id=search_field onkeyup="search()">
+    &nbsp;
+    <span id=totalShownArea> &nbsp; </span>
+</div>
+
+<div id=demoInfo>
+    <a href="http://sharetunes.berlios.de">sharetunes website</a>
+    &nbsp;
+    get <a href="http://www.macromedia.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">flash</a>
+    &nbsp; try <a href="http://www.mozilla.org">firefox</a>
+    &nbsp;
+    <a href="javascript:makeInvisible($('demoInfo'))" 
+        >[hide]</a>
+</div>
+<div id=yourComputerArea class=invisible>
+    [this box should hide on remote views]
+    <a href="javascript:toggleOptions()" id=toggleOptions>Show Options</a>
+</div>
+
+<div id=mainArea>
+</div>
+
+<div id=alwaysHidden class=invisible>
+    <div id=tablecontainer>
+        <table id="thetable" cellpadding=0 cellspacing=0>
+        <tbody id="thetbody">
+        <tr><td>Title <td>Artist <td>Album
+
+        %TRACKS_TABLE%
+
+        </tbody>
+        </table>
+    </div>    
+    <div id=options>
+        <div id=optionsLoading class=invisible>Loading options...</div>
+        <div id=optionsPane>
+            iTunes file: <input type=text id=iTunesFile> 
+            <!-- egads, we're not allowed to edit type=file -->
+                <span id="iTunesFile_errorMessage"></span> <BR>
+            Allow remote connections: <span id=allowRemoteHosts> </span>
+        </div>
+        <br>
+        <input type=button value="Save options" onclick="saveOptions()">
+        <input type=button value="Restore defaults" onclick="restoreDefaults()">
+        <div id=optionsStatus></div>
+
+
+        <div id=iTunesProcessArea>
+            <input type=button value="Read iTunes database" onclick="processITunes()">
+            <span id=iTunesProcessStatus class=invisible></span>
+        </div>
+    </div>
+</div>
+</body></html>
+
